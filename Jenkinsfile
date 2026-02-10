@@ -58,8 +58,8 @@ pipeline {
         stage("Build & Push Docker Image") {
             steps {
                 script {
-                    // Enable BuildKit for faster, modern builds
-                    sh "DOCKER_BUILDKIT=1 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                    // Build image using classic docker build
+                    sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
                     // Push to Docker Hub
                     docker.withRegistry('https://index.docker.io/v1/', 'Dockerhub') {
