@@ -8,8 +8,7 @@ pipeline {
         APP_NAME = "register-app-pipeline"
         RELEASE = "1.0.0"
         DOCKER_USER = "dreedsir12"
-        DOCKER_PASS = 'Dockerhub'
-        IMAGE_NAME ="${DOCKER_USER}" + "/" + "${APP_NAME}"
+        IMAGE_NAME = "${DOCKER_USER}/${APP_NAME}"
         IMAGE_TAG = "${RELEASE}-${BUILD_NUMBER}"
     }
         
@@ -55,19 +54,20 @@ pipeline {
                 }
             }
         }
-         stage("Build & Push Docker Image") {
+
+        stage("Build & Push Docker Image") {
             steps {
                 script {
-                    docker.withRegistry('',DOCKER_PASS) {
-                        docker_image = docker.build "${IMAGE_NAME}"
-                    }
+                    // Enable BuildKit for faster, modern builds
+                    sh "DOCKER_BUILDKIT=1 docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
-                    docker.withRegistry('',DOCKER_PASS) {
-                        docker_image.push("${IMAGE_TAG}")
-                        docker_image.push('latest')
+                    // Push to Docker Hub
+                    docker.withRegistry('https://index.docker.io/v1/', 'Dockerhub') {
+                        sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                        sh "docker push ${IMAGE_NAME}:latest"
                     }
                 }
             }
-       }
+        }
     }
 }
