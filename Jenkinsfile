@@ -66,8 +66,32 @@ pipeline {
         stage("Trivy Scan") {
             steps {
                 script {
-                    // Run Trivy vulnerability scan against the built image
-                    sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}"
+                    // Run Trivy in a container to scan the built image
+                    sh """
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      aquasec/trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
+                      --no-progress \
+                      --scanners vuln \
+                      --exit-code 1 \
+                      --severity HIGH,CRITICAL \
+                      --format table
+                    """
+                }
+            }
+            post {
+                always {
+                    // Archive Trivy scan results for later review
+                    sh """
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      aquasec/trivy image ${IMAGE_NAME}:${IMAGE_TAG} \
+                      --no-progress \
+                      --scanners vuln \
+                      --severity HIGH,CRITICAL \
+                      --format json > trivy-result.json
+                    """
+                    archiveArtifacts artifacts: 'trivy-result.json', fingerprint: true
                 }
             }
         }
@@ -81,6 +105,23 @@ pipeline {
                     }
                 }
             }
+        }
+
+        stage("Cleanup Artifacts") {
+            steps {
+                script {
+                    // Remove local images to free space
+                    sh "docker rmi ${IMAGE_NAME}:${IMAGE_TAG} || true"
+                    sh "docker rmi ${IMAGE_NAME}:latest || true"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Final cleanup of workspace after pipeline finishes
+            cleanWs()
         }
     }
 }
