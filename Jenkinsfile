@@ -55,13 +55,26 @@ pipeline {
             }
         }
 
-        stage("Build & Push Docker Image") {
+        stage("Build Docker Image") {
             steps {
                 script {
-                    // Build image using classic docker build
                     sh "docker build -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
 
-                    // Push to Docker Hub
+        stage("Trivy Scan") {
+            steps {
+                script {
+                    // Run Trivy vulnerability scan against the built image
+                    sh "trivy image --exit-code 1 --severity HIGH,CRITICAL ${IMAGE_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage("Push Docker Image") {
+            steps {
+                script {
                     docker.withRegistry('https://index.docker.io/v1/', 'Dockerhub') {
                         sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
                         sh "docker push ${IMAGE_NAME}:latest"
